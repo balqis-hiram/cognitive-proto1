@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RULE SWITCH</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=RocknRoll+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
+
+/* ================= POP LIGHT（大型ディスプレイ・明るい室内） ================= */
+:root{
+  --bg:#FFF3D6;
+  --stage:#FFFBEF;
+  --panel:#FFFFFF;
+  --stroke:#221E18;
+  --ink:#221E18;
+  --dim:#6E665A;
+  --track:#EDE4CE;
+
+  --blue:#1B6EF3;  --blue-lt:#5E9BFF;
+  --amber:#FF8A00; --amber-lt:#FFB44D;
+  --violet:#7C3AED;--violet-lt:#A97BFF;
+  --good:#12B886;
+  --bad:#FF4D5E;
+  --confetti1:#FFD43B; --confetti2:#4DD4AC; --confetti3:#FF8FA3; --confetti4:#74C0FC;
+
+  --hard:6px 6px 0 var(--stroke);
+  --hard-sm:4px 4px 0 var(--stroke);
+  --bw:4px;
+}
+/* ================= POP DARK（床・壁投影向け） ================= */
+body[data-theme="dark"]{
+  --bg:#12131C;
+  --stage:#1A1C28;
+  --panel:#232636;
+  --stroke:#FFF6E0;
+  --ink:#FFF6E0;
+  --dim:#9AA0B5;
+  --track:#2E3244;
+
+  --blue:#4D9BFF;  --blue-lt:#8CC0FF;
+  --amber:#FFB03A; --amber-lt:#FFD27A;
+  --violet:#B98BFF;--violet-lt:#D4B8FF;
+  --good:#3EE0A8;
+  --bad:#FF6B7D;
+
+  --hard:6px 6px 0 var(--stroke);
+  --hard-sm:4px 4px 0 var(--stroke);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);
+  font-family:'Zen Maru Gothic',system-ui,sans-serif;font-weight:700;
+  -webkit-font-smoothing:antialiased;user-select:none;
+  transition:background .3s ease,color .3s ease}
+.dp{font-family:'RocknRoll One',sans-serif}
+.num{font-family:'Archivo Black',sans-serif;font-feature-settings:"tnum"}
+
+/* ---------- STAGE ---------- */
+.stage{position:relative;width:100vw;height:100vh;overflow:hidden;
+  background:var(--stage);transition:background .3s ease}
+.stage-frame{position:absolute;inset:20px;border:var(--bw) solid var(--stroke);border-radius:26px;
+  pointer-events:none;z-index:2}
+
+/* chrome */
+.chrome{transition:opacity .25s ease}
+body.playing .chrome{opacity:0;pointer-events:none}
+.brand{position:absolute;top:44px;left:56px;z-index:6;
+  font-family:'Archivo Black';font-size:15px;letter-spacing:.14em}
+.tools{position:absolute;top:38px;right:56px;z-index:9;display:flex;gap:10px}
+.tbtn{font-family:'Zen Maru Gothic';font-weight:700;font-size:13px;
+  color:var(--ink);background:var(--panel);border:3px solid var(--stroke);
+  border-radius:100px;padding:9px 18px;cursor:pointer;box-shadow:var(--hard-sm);
+  transition:transform .12s,box-shadow .12s}
+.tbtn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--stroke)}
+
+/* ---------- RULE BAND ---------- */
+.rulebar{position:absolute;top:20px;left:20px;right:20px;height:31%;z-index:3;
+  border-radius:22px 22px 0 0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;transition:background .35s ease}
+.rulebar.byColor{background:linear-gradient(180deg,color-mix(in srgb,var(--blue) 16%,transparent),transparent)}
+.rulebar.byShape{background:linear-gradient(180deg,color-mix(in srgb,var(--amber) 18%,transparent),transparent)}
+.ruleK{font-size:clamp(14px,1.5vw,20px);letter-spacing:.3em;color:var(--dim);margin-bottom:14px}
+.ruleBig{font-size:clamp(54px,8.6vh,120px);line-height:1;letter-spacing:.02em}
+.ruleBig .hl{color:var(--blue);
+  -webkit-text-stroke:3px var(--stroke);paint-order:stroke fill}
+.ruleBig.byShape .hl{color:var(--amber)}
+
+.switchBanner{position:absolute;top:46%;left:50%;
+  transform:translate(-50%,-50%) rotate(-6deg) scale(.6);
+  font-family:'RocknRoll One';font-size:clamp(46px,7vh,96px);color:#fff;
+  background:var(--violet);border:var(--bw) solid var(--stroke);border-radius:20px;
+  padding:16px 44px;box-shadow:var(--hard);opacity:0;z-index:12;white-space:nowrap}
+.switchBanner.go{animation:swb 1.15s cubic-bezier(.2,1.5,.4,1)}
+@keyframes swb{
+  0%{opacity:0;transform:translate(-50%,-50%) rotate(-16deg) scale(.4)}
+  18%{opacity:1;transform:translate(-50%,-50%) rotate(-6deg) scale(1.08)}
+  28%{transform:translate(-50%,-50%) rotate(-6deg) scale(1)}
+  80%{opacity:1;transform:translate(-50%,-50%) rotate(-6deg) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) rotate(4deg) scale(1.15)}}
+
+/* ---------- TARGETS ---------- */
+.field{position:absolute;left:20px;right:20px;bottom:64px;height:60%;
+  display:grid;grid-template-columns:repeat(4,1fr);align-items:center;justify-items:center;
+  padding:0 36px;z-index:4}
+.slot{position:relative;width:100%;display:flex;align-items:center;justify-content:center}
+.target{width:min(21vh,196px);height:min(21vh,196px);cursor:pointer;position:relative;
+  transform:scale(.2) translateY(26px);opacity:0;
+  transition:transform .3s cubic-bezier(.2,1.7,.4,1),opacity .18s}
+.target.show{transform:scale(1) translateY(0);opacity:1}
+.target.show .shape{animation:bob 2.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-9px) rotate(1.5deg)}}
+.c-blue{--fill:var(--blue);--fg:var(--blue-lt)}
+.c-amber{--fill:var(--amber);--fg:var(--amber-lt)}
+.shape{width:100%;height:100%;position:relative;
+  background:linear-gradient(160deg,var(--fg),var(--fill));
+  border:var(--bw) solid var(--stroke);box-shadow:var(--hard);
+  display:flex;align-items:center;justify-content:center}
+.s-circle{border-radius:50%}
+.s-square{border-radius:22px}
+
+/* かお */
+.face{position:relative;width:56%;height:40%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14%}
+.eyes{display:flex;gap:26%;width:74%;justify-content:center}
+.eyes i{width:13%;min-width:9px;aspect-ratio:1/1.35;background:#221E18;border-radius:50%;
+  transition:all .12s}
+.mouth{width:30%;height:16%;min-height:8px;border-bottom:5px solid #221E18;
+  border-radius:0 0 60% 60%;transition:all .12s}
+.target.hit .eyes i{aspect-ratio:1/.4;border-radius:2px}
+.target.hit .mouth{width:44%;height:26%;border-bottom-width:7px}
+.target.miss .eyes i{aspect-ratio:1/.35;border-radius:2px;transform:rotate(28deg)}
+.target.miss .eyes i:last-child{transform:rotate(-28deg)}
+.target.miss .mouth{border-bottom:none;border-top:5px solid #221E18;border-radius:60% 60% 0 0}
+
+.target.hit .shape{animation:hit .45s cubic-bezier(.2,1.6,.4,1) forwards}
+.target.miss .shape{animation:miss .5s ease forwards}
+@keyframes hit{0%{transform:scale(1)}35%{transform:scale(1.22) rotate(6deg)}100%{transform:scale(0) rotate(20deg);opacity:0}}
+@keyframes miss{0%{transform:scale(1)}15%{transform:translateX(-11px) rotate(-5deg)}30%{transform:translateX(11px) rotate(5deg)}45%{transform:translateX(-8px)}60%{transform:translateX(8px)}100%{transform:scale(.85);opacity:0}}
+
+/* ---------- POP FX ---------- */
+.conf{position:absolute;width:14px;height:14px;pointer-events:none;z-index:11;
+  border:2px solid var(--stroke)}
+@keyframes cfly{to{transform:translate(var(--dx),var(--dy)) rotate(var(--rot));opacity:0}}
+.popText{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%) scale(.5);
+  font-family:'RocknRoll One';font-size:clamp(40px,6vh,78px);opacity:0;z-index:11;
+  pointer-events:none;-webkit-text-stroke:4px var(--stroke);paint-order:stroke fill}
+.popText.go{animation:pt .75s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pt{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
+  22%{opacity:1;transform:translate(-50%,-58%) scale(1.1)}
+  70%{opacity:1;transform:translate(-50%,-60%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-76%) scale(.95)}}
+
+.combo{position:absolute;top:calc(31% + 34px);right:60px;z-index:10;
+  font-family:'RocknRoll One';font-size:clamp(20px,2.4vw,32px);color:#fff;
+  background:var(--good);border:var(--bw) solid var(--stroke);border-radius:100px;
+  padding:8px 24px;box-shadow:var(--hard-sm);opacity:0;transform:scale(.6) rotate(-4deg);
+  transition:opacity .2s}
+.combo.on{opacity:1;animation:cb .4s cubic-bezier(.2,1.7,.4,1) forwards}
+@keyframes cb{0%{transform:scale(.6) rotate(-10deg)}60%{transform:scale(1.15) rotate(3deg)}100%{transform:scale(1) rotate(-3deg)}}
+
+.flash{position:absolute;inset:20px;border-radius:26px;pointer-events:none;z-index:5;opacity:0}
+.flash.good{box-shadow:inset 0 0 0 10px var(--good);animation:fl .45s ease}
+.flash.bad{box-shadow:inset 0 0 0 10px var(--bad);animation:fl .45s ease}
+@keyframes fl{0%{opacity:1}100%{opacity:0}}
+
+/* progress */
+.prog{position:absolute;left:56px;right:56px;bottom:38px;height:14px;z-index:6;
+  background:var(--track);border:3px solid var(--stroke);border-radius:100px;overflow:hidden}
+.prog>span{display:block;height:100%;width:0;background:var(--violet);transition:width .35s ease}
+.progK{position:absolute;left:56px;bottom:58px;font-size:12px;letter-spacing:.16em;color:var(--dim);z-index:6}
+
+/* ---------- OVERLAYS ---------- */
+.overlay{position:absolute;inset:20px;z-index:14;display:flex;align-items:center;justify-content:center;
+  background:var(--stage);border-radius:22px;overflow-y:auto}
+.overlay.hidden{display:none}
+.panel-center{text-align:center;max-width:1000px;padding:34px 24px;margin:auto}
+
+.bigTitle{font-family:'Archivo Black';font-size:clamp(58px,9vw,150px);line-height:.9;
+  letter-spacing:.005em;margin-bottom:20px;color:var(--violet);
+  -webkit-text-stroke:5px var(--stroke);paint-order:stroke fill}
+.bigSub{font-family:'RocknRoll One';font-size:clamp(24px,3.2vw,46px);margin-bottom:34px}
+.bigSub .hl{color:var(--violet)}
+
+.trains{display:inline-flex;align-items:center;gap:16px;margin-bottom:38px;
+  border:var(--bw) solid var(--stroke);border-radius:100px;padding:12px 30px;
+  background:var(--panel);box-shadow:var(--hard-sm)}
+.trains .tk{font-size:clamp(13px,1.3vw,17px);letter-spacing:.2em;color:var(--dim)}
+.trains .tv{font-family:'RocknRoll One';font-size:clamp(20px,2.2vw,30px);color:var(--violet)}
+
+.rulepair{display:flex;gap:22px;justify-content:center;margin-bottom:22px;flex-wrap:wrap}
+.rp{width:280px;background:var(--panel);border:var(--bw) solid var(--stroke);
+  border-radius:20px;padding:24px 20px;cursor:pointer;box-shadow:var(--hard);
+  transition:transform .12s,box-shadow .12s}
+.rp:active{transform:translate(6px,6px);box-shadow:0 0 0 var(--stroke)}
+.rp h4{font-family:'RocknRoll One';font-size:clamp(21px,2.3vw,32px);margin-bottom:8px}
+.rp.byColor h4{color:var(--blue)} .rp.byShape h4{color:var(--amber)}
+.rp .rl{font-size:clamp(16px,1.8vw,23px)}
+.detail{min-height:56px;font-size:clamp(15px,1.6vw,21px);line-height:1.7;color:var(--dim);
+  margin-bottom:28px;opacity:0;transition:opacity .22s}
+.detail.on{opacity:1}
+
+.btn{font-family:'RocknRoll One';font-size:clamp(20px,2.1vw,30px);color:#fff;
+  background:var(--violet);border:var(--bw) solid var(--stroke);border-radius:100px;
+  padding:18px 66px;cursor:pointer;box-shadow:var(--hard);
+  transition:transform .12s,box-shadow .12s}
+.btn:active{transform:translate(6px,6px);box-shadow:0 0 0 var(--stroke)}
+.btn:focus-visible{outline:4px dashed var(--violet);outline-offset:6px}
+.btn.ghost{background:var(--panel);color:var(--ink);font-size:clamp(15px,1.5vw,20px);padding:15px 34px}
+
+.countdown{font-family:'Archivo Black';font-size:min(30vh,260px);color:var(--violet);
+  -webkit-text-stroke:7px var(--stroke);paint-order:stroke fill;animation:cd 1s ease-in-out}
+@keyframes cd{0%{transform:scale(1.5) rotate(-8deg);opacity:0}30%{opacity:1}100%{transform:scale(.65) rotate(6deg);opacity:0}}
+
+/* block intro */
+.blkNo{font-family:'Archivo Black';font-size:clamp(15px,1.6vw,21px);letter-spacing:.24em;
+  color:var(--dim);margin-bottom:18px}
+.blkTitle{font-family:'RocknRoll One';font-size:clamp(40px,6.4vw,96px);line-height:1.1;margin-bottom:18px}
+.blkSub{font-size:clamp(17px,1.9vw,25px);color:var(--dim)}
+
+/* ---------- RESULT ---------- */
+.resTitle{font-family:'RocknRoll One';font-size:clamp(32px,4.2vw,60px);line-height:1.18;margin-bottom:26px}
+.res-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:26px}
+.res{background:var(--panel);border:var(--bw) solid var(--stroke);border-radius:20px;
+  padding:22px 20px;text-align:left;box-shadow:var(--hard-sm)}
+.res .rk{font-family:'RocknRoll One';font-size:clamp(19px,2.1vw,28px);margin-bottom:2px}
+.res .rt2{font-size:clamp(11px,1.1vw,14px);letter-spacing:.1em;color:var(--dim);margin-bottom:10px}
+.res .rd{font-size:clamp(13px,1.35vw,17px);color:var(--dim);margin-bottom:16px;line-height:1.6;min-height:3.2em}
+.res .rv{font-family:'Archivo Black';font-size:clamp(38px,4.4vw,60px);line-height:1}
+.res .ru{font-family:'Zen Maru Gothic';font-size:clamp(14px,1.4vw,19px);color:var(--dim);margin-left:6px}
+.res .rb{margin-top:14px;height:10px;border-radius:100px;background:var(--track);
+  border:2px solid var(--stroke);overflow:hidden}
+.res .rbf{height:100%}
+.resNote{font-size:clamp(12px,1.2vw,15px);color:var(--dim);margin-bottom:26px;line-height:1.7}
+
+@media (max-width:900px){.res-grid{grid-template-columns:repeat(2,1fr)}.field{padding:0 10px}}
+.reduced *{animation:none!important;transition:none!important}
+</style>
+</head>
+<body data-theme="light">
+
+<div class="stage" id="stage">
+  <div class="stage-frame"></div>
+  <div class="brand chrome">TR·COGNITIVE</div>
+  <div class="tools chrome">
+    <button class="tbtn" id="soundBtn">🔊 おと ON</button>
+    <button class="tbtn" id="themeBtn">🌙 くらく</button>
+  </div>
+
+  <div class="rulebar byColor" id="rulebar">
+    <div class="ruleK">いまのルール</div>
+    <div class="ruleBig dp byColor" id="ruleBig"><span class="hl">青</span>にタッチ</div>
+  </div>
+  <div class="switchBanner" id="switchBanner">ルールチェンジ！</div>
+  <div class="combo" id="combo"></div>
+  <div class="popText dp" id="popText"></div>
+
+  <div class="field" id="field"></div>
+  <div class="flash" id="flash"></div>
+
+  <div class="progK" id="progK">1 / 40</div>
+  <div class="prog"><span id="progBar"></span></div>
+
+  <!-- START -->
+  <div class="overlay" id="startScreen">
+    <div class="panel-center">
+      <div class="bigTitle">RULE SWITCH</div>
+      <div class="bigSub dp">ルールが<span class="hl">途中で変わる</span>。</div>
+      <div class="trains"><span class="tk">きたえる力</span><span class="tv dp">認知的柔軟性</span></div>
+      <div class="rulepair">
+        <div class="rp byColor" data-mode="color"><h4>色モード</h4><div class="rl">青にタッチ</div></div>
+        <div class="rp byShape" data-mode="shape"><h4>形モード</h4><div class="rl">丸にタッチ</div></div>
+      </div>
+      <div class="detail" id="detail"></div>
+      <button class="btn" id="startBtn">はじめる</button>
+    </div>
+  </div>
+
+  <!-- BLOCK INTRO -->
+  <div class="overlay hidden" id="blkScreen">
+    <div class="panel-center">
+      <div class="blkNo num" id="blkNo">PART 1 / 3</div>
+      <div class="blkTitle" id="blkTitle"></div>
+      <div class="blkSub" id="blkSub"></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="cdScreen"><div class="countdown" id="cdNum">3</div></div>
+
+  <!-- RESULT -->
+  <div class="overlay hidden" id="resScreen">
+    <div class="panel-center">
+      <div class="resTitle">認知的柔軟性を鍛えました。</div>
+      <div class="res-grid" id="resGrid"></div>
+      <div class="resNote">パート1・2（単一ルール）とパート3（ルール混在）を比べることで、「切り替えの遅れ」と「混在の負荷」を分けて算出しています。<br>デモ試行数のため、数値は参考値です。</div>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+        <button class="btn" id="againBtn">もう一度</button>
+        <button class="btn ghost" id="reportBtn">レポートを見る想定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+if(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches)
+  document.body.classList.add('reduced');
+
+/* ============ 試行数（ここだけ変えれば調整できます） ============ */
+const PURE_TRIALS = 8;    // 単一ルールブロック × 2
+const MIXED_TRIALS = 24;  // ルール混在ブロック
+const TOTAL = PURE_TRIALS*2 + MIXED_TRIALS;
+const DEADLINE = 1700;
+
+/* ============ tools ============ */
+const $=x=>document.getElementById(x);
+const stage=$('stage'),field=$('field'),flash=$('flash');
+const rulebar=$('rulebar'),ruleBig=$('ruleBig'),switchBanner=$('switchBanner');
+const comboEl=$('combo'),popText=$('popText');
+const startScreen=$('startScreen'),blkScreen=$('blkScreen'),cdScreen=$('cdScreen'),resScreen=$('resScreen');
+const cdNum=$('cdNum'),resGrid=$('resGrid'),progBar=$('progBar'),progK=$('progK');
+const show=el=>el.classList.remove('hidden'), hide=el=>el.classList.add('hidden');
+const cv=n=>getComputedStyle(document.body).getPropertyValue(n).trim();
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const rand=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+
+/* ============ theme / sound ============ */
+$('themeBtn').onclick=()=>{
+  const light=document.body.dataset.theme==='light';
+  document.body.dataset.theme=light?'dark':'light';
+  $('themeBtn').textContent=light?'☀️ あかるく':'🌙 くらく';
+};
+let muted=false, actx=null;
+$('soundBtn').onclick=()=>{muted=!muted;$('soundBtn').textContent=muted?'🔇 おと OFF':'🔊 おと ON';};
+function tone(freqs,dur,type,vol){
+  if(muted)return;
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    freqs.forEach((f,i)=>{
+      const o=actx.createOscillator(),g=actx.createGain();
+      o.type=type;o.frequency.value=f;
+      const t0=actx.currentTime+i*dur*0.55;
+      g.gain.setValueAtTime(0,t0);
+      g.gain.linearRampToValueAtTime(vol,t0+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+      o.connect(g);g.connect(actx.destination);o.start(t0);o.stop(t0+dur+0.02);
+    });
+  }catch(e){}
+}
+const sGood=()=>tone([784,1175],0.13,'triangle',0.16);
+const sBad =()=>tone([200,150],0.20,'sawtooth',0.10);
+const sSwit=()=>tone([523,659,880],0.16,'square',0.11);
+const sCombo=n=>tone([880+n*70],0.10,'sine',0.13);
+
+/* ============ state ============ */
+let state,current,shownAt,trialTimer,curRule,justSwitched,combo,blockShown=-1;
+
+function buildSeq(){
+  const seq=[];
+  const pureFirst = Math.random()<.5 ? 'color':'shape';
+  const pureSecond = pureFirst==='color'?'shape':'color';
+
+  const pushTrial=(rule,block,part,opt)=>{
+    const t=Object.assign({rule,block,part,switch:false,warmup:false},opt||{});
+    t.color=Math.random()<.5?'blue':'amber';
+    t.shape=Math.random()<.5?'circle':'square';
+    t.slot=Math.floor(Math.random()*4);
+    t.correct = rule==='color' ? t.color==='blue' : t.shape==='circle';
+    seq.push(t);
+  };
+
+  // PART 1 / 2 : 単一ルール（mixing cost の基準線）
+  for(let i=0;i<PURE_TRIALS;i++) pushTrial(pureFirst,'pure',1,{warmup:i===0});
+  for(let i=0;i<PURE_TRIALS;i++) pushTrial(pureSecond,'pure',2,{warmup:i===0});
+
+  // PART 3 : ルール混在（switch / repeat を分けて計測）
+  let rule=pureSecond, run=0, blockLen=rand(3,5);
+  for(let i=0;i<MIXED_TRIALS;i++){
+    let sw=false;
+    if(i>0 && run>=blockLen && i<MIXED_TRIALS-1){
+      rule=rule==='color'?'shape':'color';run=0;blockLen=rand(3,5);sw=true;
+    }
+    pushTrial(rule,'mixed',3,{switch:sw, warmup:i===0});
+    run++;
+  }
+  return seq;
+}
+
+function reset(){
+  state={idx:0,correct:0,total:0,persev:0,switchCount:0,
+    pureRTs:[],mixRepeatRTs:[],mixSwitchRTs:[],allRTs:[],maxCombo:0};
+  combo=0;justSwitched=false;blockShown=-1;
+  state.seq=buildSeq();
+  setRule(state.seq[0].rule,false);
+  updateProgress();
+}
+
+function setRule(rule,animate){
+  curRule=rule;
+  const color = rule==='color';
+  ruleBig.className='ruleBig dp '+(color?'byColor':'byShape');
+  ruleBig.innerHTML=color?'<span class="hl">青</span>にタッチ':'<span class="hl">丸</span>にタッチ';
+  rulebar.className='rulebar '+(color?'byColor':'byShape');
+  if(animate){
+    switchBanner.classList.remove('go');void switchBanner.offsetWidth;switchBanner.classList.add('go');
+    sSwit();
+  }
+}
+
+/* ============ start / blocks ============ */
+const TEXT={
+  color:'画面のルールに従って、青い的だけにタッチします。形は無視してかまいません。',
+  shape:'画面のルールに従って、丸い的だけにタッチします。色は無視してかまいません。'
+};
+document.querySelectorAll('.rp').forEach(c=>{
+  c.onclick=()=>{$('detail').textContent=TEXT[c.dataset.mode];$('detail').classList.add('on');};
+});
+
+$('startBtn').onclick=start;
+$('againBtn').onclick=()=>{hide(resScreen);start();};
+$('reportBtn').onclick=e=>{e.target.textContent='（本番では個人レポートPDFを生成）';};
+
+function start(){
+  reset();hide(startScreen);
+  document.body.classList.add('playing');
+  runBlockIntro(0);
+}
+
+function blockInfoFor(i){
+  const t=state.seq[i];
+  if(t.part===3) return {no:'PART 3 / 3', title:'ルールが 変わる！',
+    sub:'色モードと形モードが入れかわります。今のルールをよく見て。'};
+  return {
+    no:'PART '+t.part+' / 3',
+    title: t.rule==='color'?'色モード だけ':'形モード だけ',
+    sub: t.rule==='color'?'青にタッチ。ルールは変わりません。':'丸にタッチ。ルールは変わりません。'
+  };
+}
+
+function runBlockIntro(i){
+  const info=blockInfoFor(i);
+  $('blkNo').textContent=info.no;$('blkTitle').textContent=info.title;$('blkSub').textContent=info.sub;
+  show(blkScreen);
+  setTimeout(()=>{hide(blkScreen);countdown();},2100);
+}
+function countdown(){
+  show(cdScreen);
+  let n=3;cdNum.textContent=n;bump();
+  const iv=setInterval(()=>{n--;if(n===0){clearInterval(iv);hide(cdScreen);nextTrial();return;}
+    cdNum.textContent=n;bump();},800);
+}
+function bump(){cdNum.style.animation='none';void cdNum.offsetWidth;cdNum.style.animation='';}
+
+/* ============ trials ============ */
+function nextTrial(){
+  if(state.idx>=TOTAL) return finish();
+  const t=state.seq[state.idx], prev=state.seq[state.idx-1];
+
+  // パートが変わるタイミングで一度だけ導入画面
+  if(prev && prev.part!==t.part && blockShown!==state.idx){
+    blockShown=state.idx;
+    return runBlockIntro(state.idx);
+  }
+
+  if(t.switch){
+    setRule(t.rule,true);state.switchCount++;justSwitched=true;
+    setTimeout(()=>spawn(t),750);
+  }else{
+    setRule(t.rule,false);justSwitched=false;spawn(t);
+  }
+}
+
+function spawn(t){
+  const el=document.createElement('div');
+  el.className='target c-'+t.color;
+  el.innerHTML='<div class="shape '+(t.shape==='circle'?'s-circle':'s-square')+'">'+
+    '<div class="face"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div></div>';
+  document.querySelectorAll('.slot')[t.slot].appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  current={el,t,answered:false};shownAt=performance.now();
+  el.addEventListener('pointerdown',onHit);
+  trialTimer=setTimeout(onTimeout,DEADLINE);
+}
+
+function record(t,rt){
+  state.allRTs.push(rt);
+  if(t.warmup) return;               // 各パート先頭は指標から除外
+  if(t.block==='pure') state.pureRTs.push(rt);
+  else if(t.switch) state.mixSwitchRTs.push(rt);
+  else state.mixRepeatRTs.push(rt);
+}
+
+function onHit(e){
+  if(!current||current.answered)return;current.answered=true;clearTimeout(trialTimer);
+  const r=stage.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  const t=current.t,rt=Math.round(performance.now()-shownAt);
+  if(t.correct){
+    record(t,rt);state.correct++;state.total++;
+    current.el.classList.add('hit');doFlash('good');confetti(x,y);
+    combo++;state.maxCombo=Math.max(state.maxCombo,combo);
+    sGood();
+    if(combo>=3){showCombo(combo);sCombo(Math.min(combo,8));}
+    pop(rt<600?'ナイス！':'せいかい！',cv('--good'));
+  }else{
+    const otherWants = curRule==='color' ? (t.shape==='circle') : (t.color==='blue');
+    if(otherWants && justSwitched) state.persev++;
+    state.total++;current.el.classList.add('miss');doFlash('bad');
+    combo=0;hideCombo();sBad();pop('ちがうよ',cv('--bad'));
+  }
+  after();
+}
+function onTimeout(){
+  if(!current||current.answered)return;current.answered=true;
+  const t=current.t;
+  if(!t.correct){ // 正しく我慢できた
+    state.correct++;state.total++;current.el.classList.add('hit');doFlash('good');
+    combo++;state.maxCombo=Math.max(state.maxCombo,combo);sGood();
+    if(combo>=3){showCombo(combo);sCombo(Math.min(combo,8));}
+    pop('がまん！',cv('--good'));
+  }else{
+    state.total++;current.el.classList.add('miss');doFlash('bad');
+    combo=0;hideCombo();sBad();pop('おしい！',cv('--amber'));
+  }
+  after();
+}
+function after(){
+  const el=current&&current.el;setTimeout(()=>{if(el)el.remove()},460);
+  state.idx++;updateProgress();
+  setTimeout(nextTrial,560);
+}
+
+function updateProgress(){
+  progBar.style.width=(state.idx/TOTAL*100)+'%';
+  progK.textContent=Math.min(state.idx+1,TOTAL)+' / '+TOTAL;
+}
+function doFlash(k){flash.className='flash '+k;void flash.offsetWidth;flash.classList.add(k);
+  setTimeout(()=>flash.className='flash',480);}
+
+function pop(txt,color){
+  popText.textContent=txt;popText.style.color=color;
+  popText.classList.remove('go');void popText.offsetWidth;popText.classList.add('go');
+}
+function showCombo(n){comboEl.textContent=n+' れんぞく！';
+  comboEl.classList.remove('on');void comboEl.offsetWidth;comboEl.classList.add('on');}
+function hideCombo(){comboEl.classList.remove('on');}
+
+function confetti(x,y){
+  if(document.body.classList.contains('reduced'))return;
+  const cols=[cv('--confetti1')||'#FFD43B','#4DD4AC','#FF8FA3','#74C0FC',cv('--violet'),cv('--amber')];
+  for(let i=0;i<12;i++){
+    const c=document.createElement('div');c.className='conf';
+    const a=Math.random()*Math.PI*2, d=70+Math.random()*130;
+    c.style.left=x+'px';c.style.top=y+'px';
+    c.style.background=cols[i%cols.length];
+    c.style.borderRadius=Math.random()<.5?'50%':'3px';
+    c.style.setProperty('--dx',Math.cos(a)*d+'px');
+    c.style.setProperty('--dy',(Math.sin(a)*d+90)+'px');
+    c.style.setProperty('--rot',rand(-540,540)+'deg');
+    c.style.animation='cfly .85s cubic-bezier(.15,.7,.3,1) forwards';
+    stage.appendChild(c);
+    setTimeout(()=>c.remove(),900);
+  }
+}
+
+/* ============ result ============ */
+function finish(){
+  document.body.classList.remove('playing');
+  const acc=state.total?Math.round(state.correct/state.total*100):0;
+  const mRT=Math.round(avg(state.allRTs));
+
+  const pure=avg(state.pureRTs), rep=avg(state.mixRepeatRTs), sw=avg(state.mixSwitchRTs);
+  const localCost = (state.mixSwitchRTs.length&&state.mixRepeatRTs.length)?Math.round(sw-rep):null;
+  const mixCost   = (state.mixRepeatRTs.length&&state.pureRTs.length)?Math.round(rep-pure):null;
+
+  const flex=Math.max(0,Math.min(100,
+    100 - (localCost>0?localCost/6:0) - (mixCost>0?mixCost/8:0) - state.persev*7));
+
+  const fmt=v=>v===null?'—':(v>0?'+':'')+v;
+  const data=[
+    {k:'認知的柔軟性',t:'COGNITIVE FLEXIBILITY',
+     d:'切り替えへの適応を総合したスコア。',
+     rv:Math.round(flex),ru:'',pct:flex,c:cv('--violet')},
+    {k:'切り替えの遅れ',t:'LOCAL SWITCH COST',
+     d:'ルールが変わった直後、変わらない時より何ms遅れたか。',
+     rv:fmt(localCost),ru:'ms',pct:localCost===null?0:Math.max(6,Math.min(100,100-Math.abs(localCost)/5)),c:cv('--amber')},
+    {k:'混在の負荷',t:'MIXING COST',
+     d:'2つのルールを覚えておく状態が、単一ルールより何ms重いか。',
+     rv:fmt(mixCost),ru:'ms',pct:mixCost===null?0:Math.max(6,Math.min(100,100-Math.abs(mixCost)/5)),c:cv('--blue')},
+    {k:'ひきずり',t:'PERSEVERATIVE ERROR',
+     d:'前のルールのまま反応してしまった回数。',
+     rv:state.persev,ru:'回',pct:Math.max(6,100-state.persev*20),c:cv('--bad')},
+    {k:'平均反応時間',t:'REACTION TIME',
+     d:'的が出てからタッチするまでの平均。',
+     rv:state.allRTs.length?mRT:'—',ru:'ms',pct:state.allRTs.length?Math.max(8,Math.min(100,(1600-mRT)/1100*100)):0,c:cv('--good')},
+    {k:'正答率',t:'ACCURACY',
+     d:'全'+TOTAL+'試行のうち正しく反応できた割合。',
+     rv:acc,ru:'%',pct:acc,c:cv('--good')}
+  ];
+  resGrid.innerHTML=data.map(x=>`<div class="res">
+    <div class="rk">${x.k}</div><div class="rt2 num">${x.t}</div>
+    <div class="rd">${x.d}</div>
+    <div class="rv num">${x.rv}<span class="ru">${x.ru}</span></div>
+    <div class="rb"><div class="rbf" style="width:${x.pct}%;background:${x.c}"></div></div></div>`).join('');
+  $('reportBtn').textContent='レポートを見る想定';
+  show(resScreen);
+  tone([523,659,784,1047],0.18,'triangle',0.13);
+}
+
+/* init */
+for(let i=0;i<4;i++){const s=document.createElement('div');s.className='slot';field.appendChild(s);}
+reset();
+})();
+</script>
+</body>
+</html>
