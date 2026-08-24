@@ -78,11 +78,13 @@ body.playing .chrome{opacity:0;pointer-events:none}
 .gear:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--stroke)}
 
 /* センサー操作を想定し、選択肢は大きく。1つあたり最低9vh確保 */
-.setTitle{font-weight:900;font-size:clamp(24px,4.4vh,48px);margin-bottom:2vh}
-.setBlock{margin-bottom:1.8vh;text-align:left}
-.setLabel{font-size:clamp(13px,2.2vh,20px);font-weight:700;letter-spacing:.16em;color:var(--dim);margin-bottom:1vh}
-.optRow{display:flex;gap:1.6vh}
-.opt{flex:1;min-height:8vh;padding:1.4vh 1vh;cursor:pointer;
+.setTitle{font-weight:900;font-size:clamp(24px,4.4vh,48px);margin-bottom:2.4vh}
+/* 項目名をボタンの左横に置くことで、1行あたりの縦幅を label 1行ぶん節約する */
+.setBlock{display:flex;align-items:center;gap:2vh;margin-bottom:2vh;text-align:left}
+.setLabel{flex:0 0 5em;font-size:clamp(13px,2.2vh,20px);font-weight:700;
+  letter-spacing:.12em;color:var(--dim);line-height:1.3}
+.optRow{flex:1;display:flex;gap:1.6vh;min-width:0}
+.opt{flex:1;min-width:0;min-height:9vh;padding:1.4vh 1vh;cursor:pointer;
   font-family:var(--fJP);font-weight:900;font-size:clamp(15px,2.7vh,27px);line-height:1.15;
   color:var(--ink);background:var(--panel);border:var(--bw) solid var(--stroke);border-radius:18px;
   box-shadow:var(--hard-sm);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5vh;
@@ -210,6 +212,8 @@ body.playing .abort{display:block}
 .qrSub{font-size:clamp(11px,1.8vh,16px);font-weight:500;color:var(--dim);
   line-height:1.7;margin:2.2vh auto 2.6vh;max-width:34em}
 @media (max-width:560px){.res-grid{grid-template-columns:1fr}}
+@media (max-width:700px){.setBlock{flex-direction:column;align-items:stretch;gap:.8vh}
+  .setLabel{flex:none}}
 .pc{text-align:center;max-width:1080px;padding:2.4vh 24px;margin:auto}
 
 .bigTitle{font-family:var(--fDisp);font-weight:800;font-size:clamp(40px,11vh,124px);line-height:.9;
