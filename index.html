@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>認知トレーニング</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=M+PLUS+Rounded+1c:wght@500;700;800;900&display=swap');
+
+/* ============================================================
+   かさなりの順番（z-index）
+   数字が大きいほど手前。画面を足すときは、下敷きにしたくない
+   相手より大きい数字を書けばOKです。
+      20  設定ボタン
+      18  設定画面
+      14  ホーム本体
+   ============================================================ */
+
+:root{
+  --fJP:'M PLUS Rounded 1c',system-ui,sans-serif;
+  --fDisp:'Baloo 2','M PLUS Rounded 1c',sans-serif;
+
+  --bg:#FFF3D6; --stage:#FFFBEF; --panel:#FFFFFF;
+  --stroke:#221E18; --ink:#221E18; --dim:#6E665A; --line:#221E1826;
+
+  --violet:#7C3AED; --blue:#1B6EF3; --amber:#FF8A00; --good:#12B886;
+  --hard:6px 6px 0 var(--stroke);
+  --hard-sm:4px 4px 0 var(--stroke);
+  --bw:4px;
+}
+body[data-theme="dark"]{
+  --bg:#12131C; --stage:#1A1C28; --panel:#232636;
+  --stroke:#FFF6E0; --ink:#FFF6E0; --dim:#9AA0B5; --line:#FFF6E026;
+  --violet:#B98BFF; --blue:#4D9BFF; --amber:#FFB03A; --good:#3EE0A8;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--fJP);font-weight:700;
+  -webkit-font-smoothing:antialiased;user-select:none;transition:background .3s,color .3s}
+
+.stage{position:relative;width:100vw;height:100vh;overflow:hidden;background:var(--stage);transition:background .3s}
+.frame{position:absolute;inset:16px;border:var(--bw) solid var(--stroke);border-radius:24px;pointer-events:none;z-index:2}
+
+.wrap{position:absolute;inset:16px;z-index:14;display:flex;align-items:center;justify-content:center;overflow:auto}
+.pc{text-align:center;max-width:1120px;padding:2.4vh 24px;margin:auto;width:100%}
+
+.title{font-weight:900;font-size:clamp(28px,6.4vh,72px);line-height:1.16;margin-bottom:1.6vh}
+.title .hl{color:var(--violet)}
+.lead{font-size:clamp(13px,2.1vh,20px);font-weight:500;color:var(--dim);
+  line-height:1.7;margin-bottom:3.4vh}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:2vh}
+.card{background:var(--panel);border:var(--bw) solid var(--stroke);border-radius:22px;
+  padding:2.4vh 2.2vh;text-align:left;cursor:pointer;box-shadow:var(--hard);
+  display:flex;flex-direction:column;gap:1.4vh;
+  transition:transform .12s,box-shadow .12s}
+.card:active{transform:translate(6px,6px);box-shadow:0 0 0 var(--stroke)}
+.card.soon{cursor:default;opacity:.5;box-shadow:none;border-style:dashed}
+.card.soon:active{transform:none}
+.cHead{display:flex;align-items:center;gap:1.6vh}
+.cIcon{width:clamp(34px,5.2vh,56px);height:clamp(34px,5.2vh,56px);display:block;flex-shrink:0}
+.cIcon [stroke]{stroke:currentColor}
+.cIcon [fill]:not([fill="none"]){fill:currentColor}
+.card.a .cIcon{color:var(--violet)}
+.card.b .cIcon{color:var(--blue)}
+.card.c .cIcon{color:var(--amber)}
+.cName{font-family:var(--fDisp);font-weight:800;font-size:clamp(16px,2.7vh,29px);line-height:1.05}
+.card.a .cName{color:var(--violet)}
+.card.b .cName{color:var(--blue)}
+.card.c .cName{color:var(--amber)}
+.cSkill{display:inline-block;align-self:flex-start;font-size:clamp(11px,1.6vh,15px);
+  border:3px solid var(--stroke);border-radius:100px;padding:.5vh 1.6vh}
+.cDesc{font-size:clamp(13px,1.9vh,19px);font-weight:700;line-height:1.5}
+.cGo{margin-top:auto;text-align:center;font-family:var(--fJP);font-weight:900;
+  font-size:clamp(14px,2.1vh,21px);color:#fff;background:var(--violet);
+  border:3px solid var(--stroke);border-radius:100px;padding:1.3vh 1vh;
+  box-shadow:3px 3px 0 var(--stroke)}
+.card.soon .cGo{background:transparent;color:var(--dim);border-style:dashed;box-shadow:none}
+
+
+@media (max-width:900px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-theme="light">
+
+<div class="stage">
+  <div class="frame"></div>
+  <div class="wrap">
+    <div class="pc">
+      <div class="title">身体空間型<br><span class="hl">認知</span>トレーニング</div>
+      <div class="lead">体を動かしながら、頭のはたらきをきたえます。<br>3つの課題は、それぞれちがう力にはたらきかけます。</div>
+      <div class="cards" id="cards"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+/* ============ 収録する課題 ============
+   ready を true にすると押せるようになります。
+   file は同じフォルダに置いたHTMLのファイル名。 */
+const ICONS={
+  /* 丸と四角が入れかわる＝ルールの切り替え */
+  rule:'<svg class="cIcon" viewBox="0 0 64 64" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">'+
+    '<circle cx="16" cy="17" r="10" stroke="currentColor"/>'+
+    '<path d="M34 17h22" stroke="currentColor"/><path d="M51 12l5 5-5 5" stroke="currentColor"/>'+
+    '<rect x="38" y="37" width="20" height="20" rx="5" stroke="currentColor"/>'+
+    '<path d="M30 47H8" stroke="currentColor"/><path d="M13 42l-5 5 5 5" stroke="currentColor"/></svg>',
+  /* 点をたどる道すじ＝順番の記憶 */
+  memory:'<svg class="cIcon" viewBox="0 0 64 64" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M12 50l14-16 12 10 14-24" stroke="currentColor"/>'+
+    '<circle cx="12" cy="50" r="6" fill="currentColor"/>'+
+    '<circle cx="26" cy="34" r="6" stroke="currentColor"/>'+
+    '<circle cx="38" cy="44" r="6" stroke="currentColor"/>'+
+    '<circle cx="52" cy="20" r="6" stroke="currentColor"/></svg>',
+  /* 押す丸と、押してはいけない丸＝抑制 */
+  gonogo:'<svg class="cIcon" viewBox="0 0 64 64" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">'+
+    '<circle cx="21" cy="32" r="13" fill="currentColor"/>'+
+    '<circle cx="46" cy="32" r="13" stroke="currentColor"/>'+
+    '<path d="M37 41l18-18" stroke="currentColor"/></svg>'
+};
+
+const GAMES=[
+  {cls:'a', icon:'rule',   name:'RULE SWITCH', skill:'認知的柔軟性', file:'rule-switch.html',
+   desc:'ルールが途中で変わる。', ready:true},
+  {cls:'b', icon:'memory', name:'MEMORY PATH', skill:'作業記憶', file:'memory-path.html',
+   desc:'光った順番をたどる。', ready:false},
+  {cls:'c', icon:'gonogo', name:'GO / NO-GO', skill:'抑制', file:'spatial-gonogo.html',
+   desc:'出たら押す。でも、時々がまん。', ready:false}
+];
+
+const $=x=>document.getElementById(x);
+
+$('cards').innerHTML=GAMES.map((g,i)=>`
+  <div class="card ${g.cls}${g.ready?'':' soon'}" data-i="${i}">
+    <div class="cHead">${ICONS[g.icon]}<div class="cName">${g.name}</div></div>
+    <div class="cSkill">${g.skill}</div>
+    <div class="cDesc">${g.desc}</div>
+    <div class="cGo">${g.ready?'スタート':'準備中'}</div>
+  </div>`).join('');
+
+document.querySelectorAll('.card').forEach(c=>{
+  const g=GAMES[+c.dataset.i];
+  if(!g.ready)return;
+  c.onclick=()=>{
+    const home=location.pathname.split('/').pop()||'index.html';
+    location.href=g.file+'?home='+encodeURIComponent(home);
+  };
+});
+
+})();
+</script>
+</body>
+</html>
