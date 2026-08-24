@@ -53,7 +53,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--fJP);font-weight:70
   scrollbar-width:none;-ms-overflow-style:none}
 .track::-webkit-scrollbar{display:none}
 
-.card{flex:0 0 clamp(230px,25vw,320px);scroll-snap-align:center;
+.card{flex:0 0 clamp(230px,25vw,320px);scroll-snap-align:start;
   background:var(--panel);border:var(--bw) solid var(--stroke);border-radius:22px;
   padding:2.4vh 2vh;text-align:center;cursor:pointer;box-shadow:var(--hard);
   display:flex;flex-direction:column;align-items:center;gap:1.4vh;
@@ -187,34 +187,42 @@ cards.forEach(c=>{
   };
 });
 
-dots.innerHTML=GAMES.map((_,i)=>`<i data-i="${i}"></i>`).join('');
-const pips=[...dots.querySelectorAll('i')];
-pips.forEach(p=>p.onclick=()=>go(+p.dataset.i));
-
+/* 点の数は「カードの枚数」ではなく「スクロールできる位置の数」。
+   1度に3枚見えているなら 5-3+1 = 3通りしか止まる場所がない。
+   見える枚数は画面幅で変わるので、その都度かぞえ直す。 */
+function stride(){
+  return cards[1] ? cards[1].offsetLeft-cards[0].offsetLeft : cards[0].offsetWidth;
+}
+function visibleCount(){
+  return Math.max(1,Math.min(cards.length,Math.round(track.clientWidth/stride())));
+}
+function pageCount(){
+  return Math.max(1,cards.length-visibleCount()+1);
+}
+function buildDots(){
+  const n=pageCount();
+  dots.style.display = n>1 ? 'flex' : 'none';
+  dots.innerHTML=Array.from({length:n},(_,i)=>'<i data-i="'+i+'"></i>').join('');
+  dots.querySelectorAll('i').forEach(p=>p.onclick=()=>go(+p.dataset.i));
+}
 function go(i){
   const c=cards[i];if(!c)return;
-  track.scrollTo({left:c.offsetLeft-(track.clientWidth-c.clientWidth)/2,behavior:'smooth'});
+  track.scrollTo({left:c.offsetLeft-cards[0].offsetLeft,behavior:'smooth'});
 }
-/* いちばん中央に近いカードを「現在地」とみなす */
 function current(){
-  const mid=track.scrollLeft+track.clientWidth/2;
-  let best=0,bd=Infinity;
-  cards.forEach((c,i)=>{
-    const d=Math.abs(c.offsetLeft+c.clientWidth/2-mid);
-    if(d<bd){bd=d;best=i;}
-  });
-  return best;
+  return Math.max(0,Math.min(pageCount()-1,Math.round(track.scrollLeft/stride())));
 }
 function sync(){
   const i=current();
-  pips.forEach((p,k)=>p.classList.toggle('on',k===i));
+  dots.querySelectorAll('i').forEach((p,k)=>p.classList.toggle('on',k===i));
   $('prev').disabled = track.scrollLeft<=2;
   $('next').disabled = track.scrollLeft>=track.scrollWidth-track.clientWidth-2;
 }
 $('prev').onclick=()=>go(Math.max(0,current()-1));
-$('next').onclick=()=>go(Math.min(cards.length-1,current()+1));
+$('next').onclick=()=>go(Math.min(pageCount()-1,current()+1));
 track.addEventListener('scroll',()=>{clearTimeout(track._t);track._t=setTimeout(sync,80)});
-window.addEventListener('resize',sync);
+window.addEventListener('resize',()=>{buildDots();sync();});
+buildDots();
 document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')$('next').click();
   if(e.key==='ArrowLeft')$('prev').click();
