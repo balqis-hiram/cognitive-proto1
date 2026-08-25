@@ -516,9 +516,9 @@ const SIZES={s6:{n:6},s12:{n:12},s20:{n:20}};
 let sizeKey='s12', POINTS=12;
 
 const PACES={
-  slow  :{label:'ゆっくり',flight:2.6,oppSkill:.96,oppSpeed:0.34,cd:1000,bpm:104},
-  normal:{label:'ふつう'  ,flight:2.0,oppSkill:.96,oppSpeed:0.44,cd:850 ,bpm:116},
-  fast  :{label:'はやい'  ,flight:1.5,oppSkill:.96,oppSpeed:0.58,cd:750 ,bpm:128}
+  slow  :{label:'ゆっくり',flight:2.6,oppSpeed:0.34,cd:1000,bpm:104},
+  normal:{label:'ふつう'  ,flight:2.0,oppSpeed:0.44,cd:850 ,bpm:116},
+  fast  :{label:'はやい'  ,flight:1.5,oppSpeed:0.58,cd:750 ,bpm:128}
 };
 let paceKey='slow', pace=PACES.slow;
 let occlude=false;
@@ -910,7 +910,8 @@ function playerReach(now){
 }
 function oppReach(){
   ball.resolved=true;
-  if(Math.abs(ball.x-oppX)<=TOL*1.15 && Math.random()<pace.oppSkill){
+  // 届くかどうかは位置だけで決まる。乱数を混ぜると「当たったのに外した」と見える
+  if(Math.abs(ball.x-oppX)<=TOL*1.15){
     oppEl.classList.remove('swing');void oppEl.offsetWidth;oppEl.classList.add('swing');
     pock(false);launchToPlayer(oppX);
     raf=requestAnimationFrame(loop);

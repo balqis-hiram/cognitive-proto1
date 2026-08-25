@@ -459,9 +459,9 @@ let sizeKey='r10', MAX_ROUNDS=10;
 
 /* lit = 1つが光っている時間 / gap = 次に光るまでの間 */
 const PACES={
-  slow  :{label:'ゆっくり',lit:900,gap:440,cd:1000,intro:2400,fb:1500,bpm:66},
-  normal:{label:'ふつう'  ,lit:700,gap:340,cd:850 ,intro:2000,fb:1200,bpm:76},
-  fast  :{label:'はやい'  ,lit:520,gap:250,cd:750 ,intro:1700,fb:1000,bpm:86}
+  slow  :{label:'ゆっくり',lit:900,gap:440,cd:1000,intro:2400,fb:1500,bpm:58},
+  normal:{label:'ふつう'  ,lit:700,gap:340,cd:850 ,intro:2000,fb:1200,bpm:64},
+  fast  :{label:'はやい'  ,lit:520,gap:250,cd:750 ,intro:1700,fb:1000,bpm:72}
 };
 let paceKey='slow', pace=PACES.slow;
 
@@ -567,62 +567,91 @@ function bell(f,vol){
 const sWrong=()=>tone([200,150],0.22,'sawtooth',0.11);
 const sClear=()=>tone([659,880,1175],0.16,'triangle',0.14);
 
-/* ---- BGM：3拍子・打楽器なし。おぼえる時間はパッドだけに落とす ---- */
+/* ---- BGM：明るめのアンビエント ----
+   拍を刻まず、和音がゆっくり重なって流れていく。
+   おぼえる時間は音量を落として、光る場所の音を前に出す。 */
 const bgm={playing:false,timer:null,step:0,next:0,gain:null,quiet:false};
-const CHORDS=[[261.63,329.63,392.00],[220.00,261.63,329.63],   // C  Am
-              [174.61,220.00,261.63],[196.00,246.94,293.66],   // F  G
-              [246.94,293.66,369.99],[220.00,277.18,329.63],   // Em7 A
-              [174.61,220.00,293.66],[196.00,261.63,329.63]];  // F   G/B
+/* 9th や 6th を混ぜた明るい響き。8つでひと回り */
+const CHORDS=[
+  [261.63,329.63,392.00,493.88],   // Cmaj9
+  [246.94,293.66,392.00,440.00],   // Gadd9
+  [220.00,261.63,329.63,392.00],   // Am7
+  [174.61,261.63,329.63,440.00],   // Fmaj9
+  [164.81,261.63,329.63,392.00],   // C/E
+  [293.66,349.23,440.00,523.25],   // Dm7
+  [196.00,293.66,349.23,440.00],   // Gsus
+  [261.63,329.63,392.00,587.33]    // Cmaj9(add6)
+];
+const SPARK=[523.25,587.33,659.25,783.99,880.00,987.77,1046.50];
+
+/* ゆっくり立ち上がってゆっくり消える和音。わずかに音程をずらして厚みを出す */
 function pad(t,freqs,d){
   const a=AC();
-  freqs.forEach(f=>{
-    const o=a.createOscillator(),g=a.createGain(),lp=a.createBiquadFilter();
-    o.type='triangle';o.frequency.value=f;lp.type='lowpass';lp.frequency.value=1400;
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.055,t+0.5);
-    g.gain.linearRampToValueAtTime(0.04,t+d*0.7);
-    g.gain.exponentialRampToValueAtTime(0.0001,t+d);
-    o.connect(lp);lp.connect(g);g.connect(bgm.gain);o.start(t);o.stop(t+d+0.05);
+  freqs.forEach((f,i)=>{
+    [0,+1.6].forEach((cents,k)=>{                 // 2枚重ねてにじませる
+      const o=a.createOscillator(),g=a.createGain(),lp=a.createBiquadFilter();
+      o.type='triangle';o.frequency.value=f*(1+cents/1000);
+      lp.type='lowpass';lp.frequency.value=2800;
+      const v=(k?0.020:0.034)/(1+i*0.35);
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(v,t+d*0.35);  // ふわっと入る
+      g.gain.linearRampToValueAtTime(v*0.75,t+d*0.75);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+d*1.25);
+      o.connect(lp);lp.connect(g);g.connect(bgm.gain);o.start(t);o.stop(t+d*1.3);
+    });
   });
 }
-function chime(t,f){
+/* 上に薄くかぶせる倍音。明るさはここで作る */
+function shimmer(t,f,d){
   const a=AC(),o=a.createOscillator(),g=a.createGain();
-  o.type='sine';o.frequency.value=f;
-  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.05,t+0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+0.7);
-  o.connect(g);g.connect(bgm.gain);o.start(t);o.stop(t+0.75);
+  o.type='sine';o.frequency.value=f*2;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.016,t+d*0.5);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+d*1.2);
+  o.connect(g);g.connect(bgm.gain);o.start(t);o.stop(t+d*1.25);
 }
-const SPARK=[523.25,587.33,659.25,783.99,880.00,1046.50];
+/* まばらに落ちるベル */
+function chime(t,f){
+  const a=AC();
+  [[1,0.048],[2.005,0.016]].forEach(([m,v])=>{
+    const o=a.createOscillator(),g=a.createGain();
+    o.type='sine';o.frequency.value=f*m;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+1.3);
+    o.connect(g);g.connect(bgm.gain);o.start(t);o.stop(t+1.35);
+  });
+}
 function bgmStart(){
   if(!bgmOn||bgm.playing)return;
   const a=AC();
   bgm.gain=a.createGain();bgm.gain.gain.value=0;bgm.gain.connect(master);
-  bgm.gain.gain.linearRampToValueAtTime(0.55,a.currentTime+1.6);
+  bgm.gain.gain.linearRampToValueAtTime(0.6,a.currentTime+2.0);
   bgm.playing=true;bgm.step=0;bgm.next=a.currentTime+0.15;
-  bgm.timer=setInterval(schedule,30);
+  bgm.timer=setInterval(schedule,40);
 }
 function bgmStop(){
   if(!bgm.playing)return;
   clearInterval(bgm.timer);bgm.playing=false;
-  try{const a=AC(),g=bgm.gain;g.gain.linearRampToValueAtTime(0,a.currentTime+0.8);
-    setTimeout(()=>g.disconnect(),1000);}catch(e){}
+  try{const a=AC(),g=bgm.gain;g.gain.linearRampToValueAtTime(0,a.currentTime+1.2);
+    setTimeout(()=>g.disconnect(),1400);}catch(e){}
 }
-/* おぼえる時間は音を薄くして、光る場所の音を前に出す */
 function bgmQuiet(on){
   bgm.quiet=on;
   if(!bgm.playing)return;
-  try{const a=AC();bgm.gain.gain.linearRampToValueAtTime(on?0.16:0.55,a.currentTime+0.35);}catch(e){}
+  try{const a=AC();bgm.gain.gain.linearRampToValueAtTime(on?0.18:0.6,a.currentTime+0.5);}catch(e){}
 }
 function schedule(){
-  const a=AC(), beat=60/pace.bpm;              // 3拍子・8小節でひと回り
-  while(bgm.next<a.currentTime+0.2){
-    const s=bgm.step%3, bar=Math.floor(bgm.step/3)%8, t=bgm.next;
-    if(s===0) pad(t,CHORDS[bar],beat*3*0.96);
+  const a=AC(), beat=60/pace.bpm, bar=beat*4;     // 4拍でひと区切り
+  while(bgm.next<a.currentTime+0.3){
+    const s=bgm.step%4, b=Math.floor(bgm.step/4)%8, t=bgm.next;
+    if(s===0){
+      pad(t,CHORDS[b],bar*0.92);
+      if(b%2===0) shimmer(t,CHORDS[b][0],bar*1.6);
+    }
     if(!bgm.quiet){
-      // 小節ごとにベルの出やすさを変えると、同じ繰り返しに聞こえにくい
-      const dens=[0.55,0.25,0.45,0.7,0.3,0.6,0.35,0.8][bar];
-      if((s===1||s===2)&&Math.random()<dens)
-        chime(t,SPARK[(bgm.step*2+bar*3)%SPARK.length]);
-      if(bar===7&&s===2) chime(t,SPARK[SPARK.length-1]);   // 一巡の締め
+      // 小節ごとに降り方を変える。等間隔にしないのがアンビエントらしさ
+      const dens=[0.5,0.2,0.45,0.7,0.25,0.55,0.3,0.75][b];
+      if(s>0 && Math.random()<dens)
+        chime(t+Math.random()*beat*0.4, SPARK[Math.floor(Math.random()*SPARK.length)]);
     }
     bgm.next+=beat;bgm.step++;
   }
