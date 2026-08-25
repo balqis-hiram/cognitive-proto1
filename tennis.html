@@ -516,9 +516,9 @@ const SIZES={s6:{n:6},s12:{n:12},s20:{n:20}};
 let sizeKey='s12', POINTS=12;
 
 const PACES={
-  slow  :{label:'ゆっくり',flight:2.6,oppSpeed:0.34,cd:1000,bpm:104},
-  normal:{label:'ふつう'  ,flight:2.0,oppSpeed:0.44,cd:850 ,bpm:116},
-  fast  :{label:'はやい'  ,flight:1.5,oppSpeed:0.58,cd:750 ,bpm:128}
+  slow  :{label:'ゆっくり',flight:2.6,oppSpeed:0.34,mySpeed:0.36,cd:1000,bpm:104},
+  normal:{label:'ふつう'  ,flight:2.0,oppSpeed:0.44,mySpeed:0.46,cd:850 ,bpm:116},
+  fast  :{label:'はやい'  ,flight:1.5,oppSpeed:0.58,mySpeed:0.62,cd:750 ,bpm:128}
 };
 let paceKey='slow', pace=PACES.slow;
 let occlude=false;
@@ -741,17 +741,20 @@ document.querySelectorAll('.rp').forEach(c=>{
 
 /* ===================== ラケット操作 =====================
    画面では指／マウスの左右位置。床センサーなら人の立ち位置がそのまま入ります。 */
-let racketX=0;
+/* 指やマウスは瞬間移動できてしまうので、実際の足の速さに合わせて
+   「行きたい場所」を受け取り、そこへ一定の速さで寄っていく形にする。
+   床センサーなら人の移動そのものが同じ制約を受けている。 */
+let racketX=0, racketTarget=0;
 function moveFromEvent(e){
   const r=court.getBoundingClientRect();
   const px=(e.clientX-r.left)/r.width;
-  racketX=clamp((px-0.5)/halfW(HIT_Y),-1,1);
+  racketTarget=clamp((px-0.5)/halfW(HIT_Y),-1,1);
 }
 court.addEventListener('pointermove',e=>{e.preventDefault();moveFromEvent(e);});
 court.addEventListener('pointerdown',e=>{e.preventDefault();moveFromEvent(e);});
 document.addEventListener('keydown',e=>{
-  if(e.key==='ArrowLeft') racketX=clamp(racketX-0.14,-1,1);
-  if(e.key==='ArrowRight')racketX=clamp(racketX+0.14,-1,1);
+  if(e.key==='ArrowLeft') racketTarget=clamp(racketTarget-0.2,-1,1);
+  if(e.key==='ArrowRight')racketTarget=clamp(racketTarget+0.2,-1,1);
 });
 
 /* ===================== state ===================== */
@@ -760,7 +763,7 @@ let state,ball,raf,lastT,oppX=0;
 function reset(){
   state={pt:0,score:0,won:0,lost:0,rally:0,maxRally:0,rallies:[],
     hits:0,chances:0,leads:[],aims:[],log:[]};
-  ball=null;racketX=0;oppX=0;
+  ball=null;racketX=0;racketTarget=0;oppX=0;
   cancelAnimationFrame(raf);
   rallyV.textContent='0';scoreV.textContent='0';progBar.style.width='0%';
   ballEl.style.opacity='0';shadowEl.style.opacity='0';
@@ -809,7 +812,9 @@ function bump(){cdNum.style.animation='none';void cdNum.offsetWidth;cdNum.style.
 
 /* 相手 → 自分。バウンドが手前寄りに一度だけ起きるよう初速を決める */
 function launchToPlayer(fromX){
-  const toX=clamp((Math.random()*2-1)*0.85,-1,1);
+  // 相手はプレイヤーがいない側へ配球する。22%の確率で同じ側を突いて逆をとる
+  const away=(Math.random()<0.78?(racketX>0?-1:1):(racketX>0?1:-1));
+  const toX=clamp(away*(0.35+Math.random()*0.55),-0.9,0.9);
   const T=pace.flight, vy=(HIT_Y-OPP_Y)/T;
   const tb=(Y_BOUNCE_NEAR-OPP_Y)/vy;
   const vz=(0.5*G*tb*tb-Z0)/tb;
@@ -857,6 +862,8 @@ function loop(now){
     const d=ball.x-oppX;
     oppX+=Math.sign(d)*Math.min(Math.abs(d),pace.oppSpeed*dt);
   }
+  {const d=racketTarget-racketX;
+   racketX+=Math.sign(d)*Math.min(Math.abs(d),pace.mySpeed*dt);}
 
   drawBall();drawRackets();
 
