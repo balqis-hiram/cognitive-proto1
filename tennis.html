@@ -400,7 +400,7 @@ body[data-theme="dark"]{--violet:#3FD3D3;--violet-lt:#86E9E9;--violet-glow:#3FD3
   <div class="prog"><span id="progBar"></span></div>
 
   <div class="overlay hidden" id="setScreen">
-    <div class="pc" style="max-width:880px">
+    <div class="pc" style="max-width:1080px">
       <div class="setTitle">設定</div>
       <div class="setBlock"><div class="setLabel">ポイント</div>
         <div class="optRow" id="segSize">
@@ -438,7 +438,7 @@ body[data-theme="dark"]{--violet:#3FD3D3;--violet-lt:#86E9E9;--violet-glow:#3FD3
         <div class="optRow" id="segBgm">
           <button class="opt on" data-v="on">ON</button><button class="opt" data-v="off">OFF</button>
         </div></div>
-      <div class="setNote">ラケットは左右に動かすだけ。位置が合っていれば自動で打ち返します。</div>
+      <div class="setNote">ラケットの端で捉えるほど、返球は外側へ飛びます。相手を走らせると得点になります。</div>
     </div>
   </div>
 
@@ -467,7 +467,7 @@ body[data-theme="dark"]{--violet:#3FD3D3;--violet-lt:#86E9E9;--violet-glow:#3FD3
       <div class="trains"><span class="tk">きたえる力</span><span class="tv">予測とタイミング</span></div>
       <div class="rulepair">
         <div class="rp byColor" data-mode="move"><h4>うごく</h4><div class="rl">左右にラケットを運ぶ</div></div>
-        <div class="rp byShape" data-mode="rally"><h4>つづける</h4><div class="rl">ラリーを長くする</div></div>
+        <div class="rp byShape" data-mode="rally"><h4>ねらう</h4><div class="rl">ラケットの端で打つと外へ</div></div>
       </div>
       <div class="detail" id="detail"></div>
       <button class="btn" id="startBtn">はじめる</button>
@@ -516,9 +516,9 @@ const SIZES={s6:{n:6},s12:{n:12},s20:{n:20}};
 let sizeKey='s12', POINTS=12;
 
 const PACES={
-  slow  :{label:'ゆっくり',flight:2.6,oppSkill:.78,cd:1000,bpm:104},
-  normal:{label:'ふつう'  ,flight:2.0,oppSkill:.85,cd:850 ,bpm:116},
-  fast  :{label:'はやい'  ,flight:1.5,oppSkill:.90,cd:750 ,bpm:128}
+  slow  :{label:'ゆっくり',flight:2.6,oppSkill:.96,oppSpeed:0.34,cd:1000,bpm:104},
+  normal:{label:'ふつう'  ,flight:2.0,oppSkill:.96,oppSpeed:0.44,cd:850 ,bpm:116},
+  fast  :{label:'はやい'  ,flight:1.5,oppSkill:.96,oppSpeed:0.58,cd:750 ,bpm:128}
 };
 let paceKey='slow', pace=PACES.slow;
 let occlude=false;
@@ -733,7 +733,7 @@ $('qrCloseBtn').onclick=()=>hide($('qrScreen'));
 
 const TEXT={
   move:'ラケットは左右に動かすだけです。位置が合っていれば自動で打ち返します。',
-  rally:'打ち返すたびにラリーが伸びます。相手が返せなければ得点です。'
+  rally:'ラケットの真ん中で捉えると真ん中へ、端で捉えるほど外へ飛びます。相手が届かなければ得点です。'
 };
 document.querySelectorAll('.rp').forEach(c=>{
   c.onclick=()=>{$('detail').textContent=TEXT[c.dataset.mode];$('detail').classList.add('on');};
@@ -759,7 +759,7 @@ let state,ball,raf,lastT,oppX=0;
 
 function reset(){
   state={pt:0,score:0,won:0,lost:0,rally:0,maxRally:0,rallies:[],
-    hits:0,chances:0,leads:[],log:[]};
+    hits:0,chances:0,leads:[],aims:[],log:[]};
   ball=null;racketX=0;oppX=0;
   cancelAnimationFrame(raf);
   rallyV.textContent='0';scoreV.textContent='0';progBar.style.width='0%';
@@ -818,9 +818,9 @@ function launchToPlayer(fromX){
   state.chances++;
   ballEl.style.opacity='1';shadowEl.style.opacity='1';
 }
-/* 自分 → 相手 */
-function launchToOpp(fromX){
-  const toX=clamp((Math.random()*2-1)*0.8,-1,1);
+/* 自分 → 相手。狙う位置は「ラケットのどこで捉えたか」で決まる */
+function launchToOpp(fromX,aim){
+  const toX=clamp(aim,-0.92,0.92);
   const T=pace.flight*0.92, vy=-(HIT_Y-OPP_Y)/T;
   const tb=(HIT_Y-Y_BOUNCE_FAR)/Math.abs(vy);
   const vz=(0.5*G*tb*tb-Z0)/tb;
@@ -852,7 +852,11 @@ function loop(now){
       if(occlude&&ball.dir===1) ball.hidden=true;
     }
   }
-  if(ball.dir===-1) oppX+=clamp(ball.x-oppX,-1,1)*Math.min(1,dt*3.2);
+  // 相手の足には上限がある。だから外へ振ると走り切れない
+  if(ball.dir===-1){
+    const d=ball.x-oppX;
+    oppX+=Math.sign(d)*Math.min(Math.abs(d),pace.oppSpeed*dt);
+  }
 
   drawBall();drawRackets();
 
@@ -863,7 +867,7 @@ function loop(now){
   }
   if(ball.dir===1&&!ball.resolved&&ball.y>=HIT_Y) return playerReach(now);
   if(ball.dir===-1&&!ball.resolved&&ball.y<=OPP_Y) return oppReach();
-  if(ball.y>1.16||ball.y<-0.16){ if(!ball.resolved) return endPoint(ball.dir===1?'lost':'won'); }
+  if(ball.y>1.16||ball.y<-0.16){ if(!ball.resolved) return endPoint(ball.dir===1?'lost':'won',null); }
 
   raf=requestAnimationFrame(loop);
 }
@@ -887,17 +891,22 @@ function markBounce(x,y){
 
 function playerReach(now){
   ball.resolved=true;
-  if(Math.abs(ball.x-racketX)<=TOL){
+  const miss=Math.abs(ball.x-racketX);
+  if(miss<=TOL){
+    // ラケットの中心で捉えれば真ん中へ、端で捉えるほど外へ飛ぶ
+    const off=(ball.x-racketX)/TOL;              // -1 〜 +1
     state.hits++;state.rally++;
     state.maxRally=Math.max(state.maxRally,state.rally);
+    state.aims.push(Math.abs(off));
     if(ball.leadStart!==null) state.leads.push(Math.round(now-ball.leadStart));
     rallyV.textContent=state.rally;bumpEl(rallyV);
     racketEl.classList.remove('swing');void racketEl.offsetWidth;racketEl.classList.add('swing');
-    pock(Math.abs(ball.x-racketX)<TOL*0.45);
+    pock(miss<TOL*0.45);
     if(state.rally>=3){showCombo(state.rally);sCombo(Math.min(state.rally,8));}
-    launchToOpp(racketX);
+    if(Math.abs(off)>0.6) pop('ワイドに！',cv('--violet'));
+    launchToOpp(racketX, off*0.95);
     raf=requestAnimationFrame(loop);
-  }else endPoint('lost');
+  }else endPoint('lost',miss);
 }
 function oppReach(){
   ball.resolved=true;
@@ -905,10 +914,10 @@ function oppReach(){
     oppEl.classList.remove('swing');void oppEl.offsetWidth;oppEl.classList.add('swing');
     pock(false);launchToPlayer(oppX);
     raf=requestAnimationFrame(loop);
-  }else endPoint('won');
+  }else endPoint('won',null);
 }
 
-function endPoint(who){
+function endPoint(who,miss){
   if(ball)ball.done=true;
   cancelAnimationFrame(raf);
   ballEl.style.opacity='0';shadowEl.style.opacity='0';
@@ -919,7 +928,7 @@ function endPoint(who){
   }else{
     state.lost++;state.score+=state.rally*2;
     doFlash('bad');sLose();hideCombo();
-    pop(state.rally>0?'とどかない':'いま！',cv('--bad'));
+    pop(miss!=null&&miss<=TOL*1.9?'おしい！':'とどかない',cv('--bad'));
   }
   state.log.push({pt:state.pt+1,who,rally:state.rally,occ:occlude,pace:paceKey});
   scoreV.textContent=state.score;bumpEl(scoreV);
@@ -968,14 +977,14 @@ const METRICS=[
   {id:'hitr' ,k:'追いつけた率',t:'REACH RATE',d:'飛んできた球に間に合った割合。',u:'%',c:'--good'},
   {id:'lead' ,k:'先回りの早さ',t:'ANTICIPATION',d:'届く何ms前から位置に入れていたか。',u:'ms',c:'--amber'},
   {id:'won'  ,k:'とったポイント',t:'POINTS WON',d:'相手が返せなかった回数。',u:'点',c:'--good'},
-  {id:'score',k:'とくてん',t:'SCORE',d:'ポイント+10、1往復ごと+2。',u:'点',c:'--bad'}
+  {id:'aim'  ,k:'ねらいの大胆さ',t:'PLACEMENT',d:'ラケットの端で捉えた度合い。高いほど攻めた返球。',u:'%',c:'--bad'}
 ];
 const barPct={
   maxR:v=>Math.min(100,v*10), avgR:v=>Math.min(100,v*18),
   hitr:v=>v===null?0:v,
   lead:v=>v===null?0:Math.min(100,Math.max(6,v/12)),
   won :v=>v/POINTS*100,
-  score:v=>Math.min(100,v/(POINTS*24)*100)
+  aim :v=>v===null?0:v
 };
 function finish(){
   document.body.classList.remove('playing');bgmStop();
@@ -983,7 +992,8 @@ function finish(){
   const sum={maxR:state.maxRally,
     avgR:state.rallies.length?Math.round(avg(state.rallies)*10)/10:0,
     hitr,lead:state.leads.length?Math.round(avg(state.leads)):null,
-    won:state.won,score:state.score};
+    won:state.won,
+    aim:state.aims.length?Math.round(avg(state.aims)*100):null};
   $('resTitle').textContent = state.maxRally>=6 ? 'いいラリーでした。' : '予測する力を鍛えました。';
   resGrid.innerHTML=METRICS.map(m=>{
     const v=sum[m.id];
@@ -995,7 +1005,7 @@ function finish(){
   $('resNote').innerHTML='ポイント：<b>'+POINTS+'点</b>（とった '+state.won+' / とられた '+state.lost+'）／ ペース：<b>'+pace.label+
     '</b>／ ボール：<b>'+(occlude?'バウンド後にかくれる':'ずっと見える')+
     '</b>／ 二重課題：<b>'+DT[dtKey].label+'</b>　'+
-    '「先回りの早さ」は、球が届く何ms前からラケットを正しい位置に置けていたかです。';
+    'ラケットの真ん中で返すとラリーが続き、端で返すと相手が走らされて得点になりやすくなります。';
   show(resScreen);
   tone([523,659,784,1047],0.18,'triangle',0.14);
 }
