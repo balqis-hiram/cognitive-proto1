@@ -510,7 +510,10 @@ if(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches)
 const HIT_Y=0.90, OPP_Y=0.10;
 const G=2.4, Z0=0.20, REST=0.58;
 const Y_BOUNCE_NEAR=0.64, Y_BOUNCE_FAR=0.34;
-const TOL=0.16;                       // ラケットの守備範囲（x）。見た目の幅もこれで決まる
+const TOL=0.16;
+/* コートの実寸（横幅・メートル）。移動距離をメートルで出すために使う。
+   床投影のマットや画面の大きさに合わせて変えてください。 */
+const COURT_M=3.0;                       // ラケットの守備範囲（x）。見た目の幅もこれで決まる
 
 const SIZES={s4:{n:4},s8:{n:8},s14:{n:14}};
 let sizeKey='s8', POINTS=8;
@@ -757,12 +760,12 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ===================== state ===================== */
-let state,ball,raf,lastT,oppX=0;
+let state,ball,raf,lastT,oppX=0,lastRX=0;
 
 function reset(){
   state={pt:0,score:0,won:0,lost:0,rally:0,maxRally:0,rallies:[],
-    hits:0,chances:0,leads:[],aims:[],log:[]};
-  ball=null;racketX=0;oppX=0;
+    hits:0,chances:0,leads:[],aims:[],travel:0,log:[]};
+  ball=null;racketX=0;lastRX=0;oppX=0;
   cancelAnimationFrame(raf);
   rallyV.textContent='0';scoreV.textContent='0';progBar.style.width='0%';
   ballEl.style.opacity='0';shadowEl.style.opacity='0';
@@ -864,6 +867,8 @@ function loop(now){
     const d=ball.x-oppX;
     oppX+=Math.sign(d)*Math.min(Math.abs(d),pace.oppSpeed*dt);
   }
+  // 左右にどれだけ動いたかを積み上げる（x は -1〜+1 でコート幅が2）
+  state.travel+=Math.abs(racketX-lastRX);lastRX=racketX;
 
   drawBall();drawRackets();
 
@@ -984,14 +989,14 @@ const METRICS=[
   {id:'avgR' ,k:'平均ラリー',t:'AVERAGE RALLY',d:'1ポイントあたりの往復の回数。',u:'回',c:'--blue'},
   {id:'hitr' ,k:'追いつけた率',t:'REACH RATE',d:'飛んできた球に間に合った割合。',u:'%',c:'--good'},
   {id:'lead' ,k:'先回りの早さ',t:'ANTICIPATION',d:'届く何ms前から位置に入れていたか。',u:'ms',c:'--amber'},
-  {id:'won'  ,k:'とったポイント',t:'POINTS WON',d:'相手が返せなかった回数。',u:'点',c:'--good'},
+  {id:'move' ,k:'左右の移動',t:'DISTANCE MOVED',d:'ラケットを左右に動かした合計の距離。',u:'m',c:'--good'},
   {id:'aim'  ,k:'ねらいの大胆さ',t:'PLACEMENT',d:'ラケットの端で捉えた度合い。高いほど攻めた返球。',u:'%',c:'--bad'}
 ];
 const barPct={
   maxR:v=>Math.min(100,v*10), avgR:v=>Math.min(100,v*18),
   hitr:v=>v===null?0:v,
   lead:v=>v===null?0:Math.min(100,Math.max(6,v/12)),
-  won :v=>v/POINTS*100,
+  move:v=>Math.min(100,v/30*100),
   aim :v=>v===null?0:v
 };
 function finish(){
@@ -1000,7 +1005,7 @@ function finish(){
   const sum={maxR:state.maxRally,
     avgR:state.rallies.length?Math.round(avg(state.rallies)*10)/10:0,
     hitr,lead:state.leads.length?Math.round(avg(state.leads)):null,
-    won:state.won,
+    move:Math.round(state.travel*COURT_M/2*10)/10,
     aim:state.aims.length?Math.round(avg(state.aims)*100):null};
   $('resTitle').textContent = state.maxRally>=6 ? 'いいラリーでした。' : '予測する力を鍛えました。';
   resGrid.innerHTML=METRICS.map(m=>{
