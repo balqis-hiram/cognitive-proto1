@@ -404,9 +404,9 @@ body[data-theme="dark"]{--violet:#3FD3D3;--violet-lt:#86E9E9;--violet-glow:#3FD3
       <div class="setTitle">設定</div>
       <div class="setBlock"><div class="setLabel">ポイント</div>
         <div class="optRow" id="segSize">
-          <button class="opt" data-v="s6">6点<small>体験用</small></button>
-          <button class="opt on" data-v="s12">12点<small>標準</small></button>
-          <button class="opt" data-v="s20">20点<small>しっかり</small></button>
+          <button class="opt" data-v="s4">4点<small>体験用</small></button>
+          <button class="opt on" data-v="s8">8点<small>標準</small></button>
+          <button class="opt" data-v="s14">14点<small>しっかり</small></button>
         </div></div>
       <div class="setBlock"><div class="setLabel">ペース</div>
         <div class="optRow" id="segPace">
@@ -438,7 +438,7 @@ body[data-theme="dark"]{--violet:#3FD3D3;--violet-lt:#86E9E9;--violet-glow:#3FD3
         <div class="optRow" id="segBgm">
           <button class="opt on" data-v="on">ON</button><button class="opt" data-v="off">OFF</button>
         </div></div>
-      <div class="setNote">ラケットの端で捉えるほど、返球は外側へ飛びます。相手を走らせると得点になります。</div>
+      <div class="setNote">ラケットの端で捉えるほど返球は外側へ飛びます。球足は1球ごとに少し変わります。ラリーに上限はありません。</div>
     </div>
   </div>
 
@@ -512,13 +512,13 @@ const G=2.4, Z0=0.20, REST=0.58;
 const Y_BOUNCE_NEAR=0.64, Y_BOUNCE_FAR=0.34;
 const TOL=0.16;                       // ラケットの守備範囲（x）。見た目の幅もこれで決まる
 
-const SIZES={s6:{n:6},s12:{n:12},s20:{n:20}};
-let sizeKey='s12', POINTS=12;
+const SIZES={s4:{n:4},s8:{n:8},s14:{n:14}};
+let sizeKey='s8', POINTS=8;
 
 const PACES={
-  slow  :{label:'ゆっくり',flight:2.6,oppSpeed:0.34,mySpeed:0.36,cd:1000,bpm:104},
-  normal:{label:'ふつう'  ,flight:2.0,oppSpeed:0.44,mySpeed:0.46,cd:850 ,bpm:116},
-  fast  :{label:'はやい'  ,flight:1.5,oppSpeed:0.58,mySpeed:0.62,cd:750 ,bpm:128}
+  slow  :{label:'ゆっくり',flight:2.6,oppSpeed:0.34,cd:1000,bpm:104},
+  normal:{label:'ふつう'  ,flight:2.0,oppSpeed:0.44,cd:850 ,bpm:116},
+  fast  :{label:'はやい'  ,flight:1.5,oppSpeed:0.58,cd:750 ,bpm:128}
 };
 let paceKey='slow', pace=PACES.slow;
 let occlude=false;
@@ -741,20 +741,19 @@ document.querySelectorAll('.rp').forEach(c=>{
 
 /* ===================== ラケット操作 =====================
    画面では指／マウスの左右位置。床センサーなら人の立ち位置がそのまま入ります。 */
-/* 指やマウスは瞬間移動できてしまうので、実際の足の速さに合わせて
-   「行きたい場所」を受け取り、そこへ一定の速さで寄っていく形にする。
-   床センサーなら人の移動そのものが同じ制約を受けている。 */
-let racketX=0, racketTarget=0;
+/* ラケットは指・マウスの位置にそのまま追従する。
+   床センサーの場合は人の移動そのものが自然な制約になる。 */
+let racketX=0;
 function moveFromEvent(e){
   const r=court.getBoundingClientRect();
   const px=(e.clientX-r.left)/r.width;
-  racketTarget=clamp((px-0.5)/halfW(HIT_Y),-1,1);
+  racketX=clamp((px-0.5)/halfW(HIT_Y),-1,1);
 }
 court.addEventListener('pointermove',e=>{e.preventDefault();moveFromEvent(e);});
 court.addEventListener('pointerdown',e=>{e.preventDefault();moveFromEvent(e);});
 document.addEventListener('keydown',e=>{
-  if(e.key==='ArrowLeft') racketTarget=clamp(racketTarget-0.2,-1,1);
-  if(e.key==='ArrowRight')racketTarget=clamp(racketTarget+0.2,-1,1);
+  if(e.key==='ArrowLeft') racketX=clamp(racketX-0.16,-1,1);
+  if(e.key==='ArrowRight')racketX=clamp(racketX+0.16,-1,1);
 });
 
 /* ===================== state ===================== */
@@ -763,7 +762,7 @@ let state,ball,raf,lastT,oppX=0;
 function reset(){
   state={pt:0,score:0,won:0,lost:0,rally:0,maxRally:0,rallies:[],
     hits:0,chances:0,leads:[],aims:[],log:[]};
-  ball=null;racketX=0;racketTarget=0;oppX=0;
+  ball=null;racketX=0;oppX=0;
   cancelAnimationFrame(raf);
   rallyV.textContent='0';scoreV.textContent='0';progBar.style.width='0%';
   ballEl.style.opacity='0';shadowEl.style.opacity='0';
@@ -814,8 +813,8 @@ function bump(){cdNum.style.animation='none';void cdNum.offsetWidth;cdNum.style.
 function launchToPlayer(fromX){
   // 相手はプレイヤーがいない側へ配球する。22%の確率で同じ側を突いて逆をとる
   const away=(Math.random()<0.78?(racketX>0?-1:1):(racketX>0?1:-1));
-  const toX=clamp(away*(0.35+Math.random()*0.55),-0.9,0.9);
-  const T=pace.flight, vy=(HIT_Y-OPP_Y)/T;
+  const toX=clamp(away*(0.48+Math.random()*0.5),-0.95,0.95);
+  const T=pace.flight*tempo(), vy=(HIT_Y-OPP_Y)/T;
   const tb=(Y_BOUNCE_NEAR-OPP_Y)/vy;
   const vz=(0.5*G*tb*tb-Z0)/tb;
   ball={x:fromX,y:OPP_Y,z:Z0,vx:(toX-fromX)/T,vy,vz,
@@ -826,13 +825,16 @@ function launchToPlayer(fromX){
 /* 自分 → 相手。狙う位置は「ラケットのどこで捉えたか」で決まる */
 function launchToOpp(fromX,aim){
   const toX=clamp(aim,-0.92,0.92);
-  const T=pace.flight*0.92, vy=-(HIT_Y-OPP_Y)/T;
+  const T=pace.flight*0.92*tempo(), vy=-(HIT_Y-OPP_Y)/T;
   const tb=(HIT_Y-Y_BOUNCE_FAR)/Math.abs(vy);
   const vz=(0.5*G*tb*tb-Z0)/tb;
   ball={x:fromX,y:HIT_Y,z:Z0,vx:(toX-fromX)/T,vy,vz,
     dir:-1,bounced:false,resolved:false,done:false,leadStart:null,hidden:false};
   ballEl.style.opacity='1';shadowEl.style.opacity='1';
 }
+/* 球足は1球ごとに少しばらつく。速い球・遅い球が混ざるほうが読みが要る */
+function tempo(){ return 0.86+Math.random()*0.28; }
+
 function serve(){
   state.rally=0;rallyV.textContent='0';
   oppX=(Math.random()*2-1)*0.6;
@@ -862,8 +864,6 @@ function loop(now){
     const d=ball.x-oppX;
     oppX+=Math.sign(d)*Math.min(Math.abs(d),pace.oppSpeed*dt);
   }
-  {const d=racketTarget-racketX;
-   racketX+=Math.sign(d)*Math.min(Math.abs(d),pace.mySpeed*dt);}
 
   drawBall();drawRackets();
 
@@ -911,7 +911,7 @@ function playerReach(now){
     pock(miss<TOL*0.45);
     if(state.rally>=3){showCombo(state.rally);sCombo(Math.min(state.rally,8));}
     if(Math.abs(off)>0.6) pop('ワイドに！',cv('--violet'));
-    launchToOpp(racketX, off*0.95);
+    launchToOpp(racketX, off*1.15);   // 端で捉えるほど大きく振れる
     raf=requestAnimationFrame(loop);
   }else endPoint('lost',miss);
 }
@@ -1013,7 +1013,7 @@ function finish(){
   $('resNote').innerHTML='ポイント：<b>'+POINTS+'点</b>（とった '+state.won+' / とられた '+state.lost+'）／ ペース：<b>'+pace.label+
     '</b>／ ボール：<b>'+(occlude?'バウンド後にかくれる':'ずっと見える')+
     '</b>／ 二重課題：<b>'+DT[dtKey].label+'</b>　'+
-    'ラケットの真ん中で返すとラリーが続き、端で返すと相手が走らされて得点になりやすくなります。';
+    'ラケットの真ん中で返すとラリーが続き、端で返すほど大きく外へ振れます。';
   show(resScreen);
   tone([523,659,784,1047],0.18,'triangle',0.14);
 }
